@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>סימולטור מטלה - Weather Israel MCP</title>
+  <style>
+    :root {
+      --bg-a: #f8fbff;
+      --bg-b: #eefaf4;
+      --card: #ffffff;
+      --ink: #1e293b;
+      --muted: #64748b;
+      --line: #d9e7f4;
+      --accent: #0f766e;
+      --accent-2: #0ea5e9;
+      --ok: #16a34a;
+      --step: #0284c7;
+      --tool-open: #0ea5e9;
+      --tool-enter: #8b5cf6;
+      --tool-select: #f59e0b;
+      --tool-extract: #10b981;
+      --active-bg: #ecfeff;
+      --active-border: #67e8f9;
+      --overlay: rgba(15, 23, 42, 0.55);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(150deg, var(--bg-a), var(--bg-b));
+    }
+    .container {
+      max-width: 1440px;
+      margin: 20px auto;
+      padding: 0 14px 26px;
+    }
+    .hero {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--card);
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .hero h1 {
+      margin: 0 0 7px;
+      font-size: 24px;
+    }
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 1.1fr 1.05fr;
+      gap: 12px;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--card);
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+      padding: 12px;
+      min-height: 220px;
+    }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+    .flow { display: grid; gap: 7px; }
+    .node {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 9px 10px;
+      background: #fcffff;
+      transition: 0.2s ease;
+    }
+    .node.active {
+      background: var(--active-bg);
+      border-color: var(--active-border);
+      transform: translateX(-2px);
+    }
+    .node .t {
+      font-weight: 700;
+      margin-bottom: 3px;
+      font-size: 14px;
+    }
+    .node .d {
+      color: var(--muted);
+      line-height: 1.35;
+      font-size: 13px;
+    }
+    .arrow {
+      text-align: center;
+      color: #94a3b8;
+      line-height: 1;
+      font-size: 14px;
+    }
+    .tools { display: grid; gap: 8px; }
+    .tool {
+      border: 1px solid var(--line);
+      border-right: 8px solid #ddd;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 13px;
+      background: #fbfdff;
+      transition: 0.2s ease;
+    }
+    .tool .name { font-weight: 700; margin-bottom: 3px; }
+    .tool.active {
+      background: #f0fdf4;
+      border-color: #86efac;
+      transform: scale(1.01);
+    }
+    .tool-open { border-right-color: var(--tool-open); }
+    .tool-enter { border-right-color: var(--tool-enter); }
+    .tool-select { border-right-color: var(--tool-select); }
+    .tool-extract { border-right-color: var(--tool-extract); }
+    .controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid #93c5fd;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border-radius: 10px;
+      padding: 8px 11px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    button.alt {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+    }
+    .status {
+      border: 1px dashed #bfdbfe;
+      background: #f0f9ff;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 13px;
+      margin-top: 9px;
+      min-height: 44px;
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.35;
+    }
+    .list {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbfdff;
+      max-height: 430px;
+      overflow: auto;
+      padding: 8px;
+    }
+    .item {
+      border-bottom: 1px solid #e8eef7;
+      padding: 8px 0;
+      font-size: 12px;
+    }
+    .item:last-child { border-bottom: 0; }
+    .item.clickable { cursor: pointer; }
+    .item.clickable:hover {
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .badge {
+      display: inline-block;
+      border-radius: 999px;
+      color: #fff;
+      padding: 2px 7px;
+      font-size: 10px;
+      margin-left: 6px;
+    }
+    .user { background: #0369a1; }
+    .assistant { background: #6d28d9; }
+    .toolRole { background: #15803d; }
+    .stepBadge {
+      background: var(--step);
+      color: #fff;
+      border-radius: 999px;
+      font-size: 10px;
+      padding: 2px 7px;
+      margin-left: 6px;
+      display: inline-block;
+    }
+    .toolTag {
+      display: inline-block;
+      border-radius: 6px;
+      padding: 1px 6px;
+      color: #fff;
+      font-size: 10px;
+      margin-top: 4px;
+      margin-left: 4px;
+    }
+    .tag-open { background: var(--tool-open); }
+    .tag-enter { background: var(--tool-enter); }
+    .tag-select { background: var(--tool-select); color: #111827; }
+    .tag-extract { background: var(--tool-extract); }
+    .step-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fcfeff;
+      padding: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .step-card:hover { background: #f8fbff; }
+    .step-card .st-title { font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+    .step-card .st-desc { font-size: 12px; color: var(--muted); }
+    .link-indicator {
+      margin-top: 5px;
+      font-size: 11px;
+      color: #0f766e;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 999px;
+      padding: 3px 8px;
+      display: inline-block;
+    }
+    .finalBox {
+      margin-top: 10px;
+      border: 2px solid #86efac;
+      background: #f0fdf4;
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .finalBox h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      color: #14532d;
+    }
+    .finalText {
+      min-height: 36px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 14px;
+    }
+    .modal.show { display: flex; }
+    .modal-card {
+      width: min(900px, 96vw);
+      max-height: 88vh;
+      overflow: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      background: #ffffff;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+      padding: 14px;
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .modal-head h3 { margin: 0; font-size: 18px; }
+    .close-btn {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .modal p {
+      margin: 0 0 8px;
+      line-height: 1.5;
+      color: #334155;
+      font-size: 14px;
+    }
+    .code {
+      direction: ltr;
+      text-align: left;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 10px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      overflow: auto;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      margin-top: 6px;
+    }
+    @media (max-width: 1300px) {
+      .layout {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>תרשים פרויקט + סימולציה מפורטת של המטלה</h1>
+      <p>
+        בדף הזה יש שתי תצוגות נפרדות: `messages (היסטוריה חיה)` עבור תוכן המערך בפועל,
+        ו-`שלבי ביצוע` עבור יומן השלבים שבוצעו. לחיצה על כל שלב או אובייקט פותחת חלון מפורט עם הסבר וקוד.
+      </p>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>תרשים זרימה ראשי</h2>
+        <div class="flow">
+          <div class="node" id="n1"><div class="t">1) התחלת Query</div><div class="d">יצירת `messages` ראשוני עם הודעת משתמש.</div></div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n2"><div class="t">2) קריאה למודל עם tools</div><div class="d">`chat.completions.create(messages, tools)`</div></div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n3"><div class="t">3) בדיקה אם יש tool_calls</div><div class="d">אם אין: תשובה סופית. אם יש: ממשיכים לכלי.</div></div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n4"><div class="t">4) הוספת assistant להיסטוריה</div><div class="d">שומרים גם את tool_calls במבנה ההודעה.</div></div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n5"><div class="t">5) הפעלת כלי MCP</div><div class="d">open / enter / select / extract לפי החלטת המודל.</div></div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n6"><div class="t">6) הוספת role=tool להיסטוריה</div><div class="d">שומרים את פלט הכלי כחלק מההקשר.</div></div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n7"><div class="t">7) לולאה לסבב נוסף</div><div class="d">שולחים שוב את כל `messages` המעודכן.</div></div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n8"><div class="t">8) תשובה סופית למשתמש</div><div class="d">רק כשאין יותר `tool_calls`.</div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>כלים שנייצר ב-MCP Israel</h2>
+        <div class="tools">
+          <div class="tool tool-open" id="tool-open">
+            <div class="name">open_weather_forecast_israel</div>
+            <div>פותח דפדפן ונכנס לאתר התחזית.</div>
+          </div>
+          <div class="tool tool-enter" id="tool-enter">
+            <div class="name">enter_weather_forecast_city_israel</div>
+            <div>מקליד שם עיר בשדה החיפוש.</div>
+          </div>
+          <div class="tool tool-select" id="tool-select">
+            <div class="name">select_weather_forecast_city_israel</div>
+            <div>בוחר עיר מהרשימה הנפתחת.</div>
+          </div>
+          <div class="tool tool-extract" id="tool-extract">
+            <div class="name">extract_weather_forecast_content_israel</div>
+            <div>מחלץ טקסט תחזית לדיאלוג עם המודל.</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="scenario1">תרחיש א: כלי אחד</button>
+          <button id="scenario3">תרחיש ב: רצף מלא 3+1</button>
+          <button class="alt" id="stepBtn">צעד הבא</button>
+          <button class="alt" id="autoBtn">הרצה אוטומטית</button>
+          <button class="alt" id="resetBtn">איפוס</button>
+        </div>
+        <div class="status" id="status">בחרי תרחיש כדי להתחיל.</div>
+        <div class="small">
+          ב"תרחיש ב" תראי ריצה מלאה: open -> enter -> select -> extract, ואז תשובה סופית.
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>messages (היסטוריה חיה)</h2>
+        <div class="small">
+          כאן מוצג תוכן המערך בפועל. לחצי על אובייקט כדי לראות JSON גולמי כמו ב-F12.
+        </div>
+        <div class="list" id="history"></div>
+        <div class="finalBox">
+          <h3>התשובה הסופית למשתמש</h3>
+          <div class="finalText" id="finalText">עדיין אין תשובה סופית.</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>שלבי ביצוע (יומן היסטורי)</h2>
+        <div class="small">
+          כל שלב נשמר כאן עם שם + תיאור קצר. לחיצה על שלב פותחת הסבר מורחב ודוגמת קוד.
+        </div>
+        <div class="list" id="stepsLog"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalTitle">פרטי רכיב</h3>
+        <button class="close-btn" id="modalClose">סגור</button>
+      </div>
+      <p id="modalDesc"></p>
+      <div class="code" id="modalCode"></div>
+    </div>
+  </div>
+
+  <script>
+    const nodes = ["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8"];
+    const toolIds = ["tool-open", "tool-enter", "tool-select", "tool-extract"];
+
+    const statusEl = document.getElementById("status");
+    const historyEl = document.getElementById("history");
+    const stepsLogEl = document.getElementById("stepsLog");
+    const finalTextEl = document.getElementById("finalText");
+    const modalEl = document.getElementById("modal");
+    const modalTitleEl = document.getElementById("modalTitle");
+    const modalDescEl = document.getElementById("modalDesc");
+    const modalCodeEl = document.getElementById("modalCode");
+
+    const scenario1Btn = document.getElementById("scenario1");
+    const scenario3Btn = document.getElementById("scenario3");
+    const stepBtn = document.getElementById("stepBtn");
+    const autoBtn = document.getElementById("autoBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const modalCloseBtn = document.getElementById("modalClose");
+
+    let steps = [];
+    let idx = 0;
+    let running = false;
+    let messages = [];
+    let stepLogs = [];
+
+    function clearNodeActive() {
+      nodes.forEach(id => document.getElementById(id).classList.remove("active"));
+    }
+    function setNodeActive(id) {
+      clearNodeActive();
+      document.getElementById(id).classList.add("active");
+    }
+    function clearToolActive() {
+      toolIds.forEach(id => document.getElementById(id).classList.remove("active"));
+    }
+    function setToolActive(toolKey) {
+      clearToolActive();
+      if (!toolKey) return;
+      document.getElementById("tool-" + toolKey).classList.add("active");
+    }
+    function escapeHtml(s) {
+      return String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+    }
+    function pretty(obj) {
+      return JSON.stringify(obj, null, 2);
+    }
+    function roleBadge(role) {
+      if (role === "user") return `<span class="badge user">user</span>`;
+      if (role === "assistant") return `<span class="badge assistant">assistant</span>`;
+      return `<span class="badge toolRole">tool</span>`;
+    }
+    function toolTagClass(name) {
+      if (!name) return "";
+      if (name.includes("open_weather_forecast_israel")) return "tag-open";
+      if (name.includes("enter_weather_forecast_city_israel")) return "tag-enter";
+      if (name.includes("select_weather_forecast_city_israel")) return "tag-select";
+      return "tag-extract";
+    }
+
+    function openModal(title, desc, code) {
+      modalTitleEl.textContent = title;
+      modalDescEl.textContent = desc;
+      modalCodeEl.textContent = code;
+      modalEl.classList.add("show");
+    }
+    function composeStepModalCode(s) {
+      const blocks = [];
+      blocks.push("=== Step Code ===");
+      blocks.push(s.codeSnippet || "(no code)");
+
+      if (s.rawModelResponse) {
+        blocks.push("\n=== Model Raw Response (before extracting tool_calls) ===");
+        blocks.push(pretty(s.rawModelResponse));
+      }
+      if (s.rawToolResponse) {
+        blocks.push("\n=== Tool Raw Response (before conversion) ===");
+        blocks.push(pretty(s.rawToolResponse));
+      }
+      if (s.beforeTextConversion !== undefined) {
+        blocks.push("\n=== Before Text Conversion ===");
+        if (typeof s.beforeTextConversion === "string") {
+          blocks.push(s.beforeTextConversion);
+        } else {
+          blocks.push(pretty(s.beforeTextConversion));
+        }
+      }
+      if (s.afterTextConversion !== undefined) {
+        blocks.push("\n=== After Text Conversion ===");
+        blocks.push(String(s.afterTextConversion));
+      }
+      return blocks.join("\n");
+    }
+    function closeModal() {
+      modalEl.classList.remove("show");
+    }
+    modalCloseBtn.addEventListener("click", closeModal);
+    modalEl.addEventListener("click", e => {
+      if (e.target === modalEl) closeModal();
+    });
+
+    function renderHistory() {
+      if (messages.length === 0) {
+        historyEl.innerHTML = '<div class="small">המערך ריק כרגע</div>';
+        return;
+      }
+      historyEl.innerHTML = messages.map((m, i) => {
+        const tag = m.name ? `<span class="toolTag ${toolTagClass(m.name)}">${escapeHtml(m.name)}</span>` : "";
+        const stepTag = m._fromStep ? `<span class="stepBadge">משלב ${m._fromStep}</span>` : "";
+        const explain = m._explain ? `<div class="small"><strong>הסבר:</strong> ${escapeHtml(m._explain)}</div>` : "";
+        const summary = m.tool_calls
+          ? `tool_calls: ${escapeHtml(JSON.stringify(m.tool_calls))}`
+          : (m.content ? escapeHtml(String(m.content).slice(0, 120)) : "(ללא תוכן)");
+        return `
+          <div class="item clickable" data-msg-index="${i}">
+            <div><strong>#${i}</strong> ${roleBadge(m.role)} ${tag} ${stepTag}</div>
+            <div>${summary}</div>
+            ${explain}
+          </div>
+        `;
+      }).join("");
+
+      historyEl.querySelectorAll("[data-msg-index]").forEach(el => {
+        el.addEventListener("click", () => {
+          const i = Number(el.getAttribute("data-msg-index"));
+          const obj = messages[i];
+          openModal(
+            `אובייקט messages[${i}]`,
+            "תצוגה גולמית של האובייקט כפי שנשמר בהיסטוריה (פורמט JSON).",
+            pretty(obj)
+          );
+        });
+      });
+      historyEl.scrollTop = historyEl.scrollHeight;
+    }
+
+    function renderStepsLog() {
+      if (stepLogs.length === 0) {
+        stepsLogEl.innerHTML = '<div class="small">עדיין לא בוצעו שלבים בסימולציה</div>';
+        return;
+      }
+      stepsLogEl.innerHTML = stepLogs.map((s, i) => {
+        const link = s.addedMessageIndex !== null
+          ? `<div class="link-indicator">↘ נוסף פריט ל-messages[${s.addedMessageIndex}]</div>`
+          : "";
+        return `
+          <div class="step-card" data-step-index="${i}">
+            <div class="st-title">${i + 1}. ${escapeHtml(s.title)}</div>
+            <div class="st-desc">${escapeHtml(s.shortDesc)}</div>
+            ${link}
+          </div>
+        `;
+      }).join("");
+
+      stepsLogEl.querySelectorAll("[data-step-index]").forEach(el => {
+        el.addEventListener("click", () => {
+          const i = Number(el.getAttribute("data-step-index"));
+          const s = stepLogs[i];
+          openModal(
+            `שלב ${i + 1}: ${s.title}`,
+            s.longDesc,
+            composeStepModalCode(s)
+          );
+        });
+      });
+      stepsLogEl.scrollTop = stepsLogEl.scrollHeight;
+    }
+
+    function addStepLog(entry) {
+      stepLogs.push(entry);
+      renderStepsLog();
+    }
+
+    function pushMessage(obj, explain, fromStepNo) {
+      obj._explain = explain;
+      obj._fromStep = fromStepNo;
+      messages.push(obj);
+      return messages.length - 1;
+    }
+
+    function resetBase(text = "בחרי תרחיש כדי להתחיל.") {
+      idx = 0;
+      running = false;
+      messages = [];
+      stepLogs = [];
+      steps = [];
+      clearNodeActive();
+      clearToolActive();
+      statusEl.textContent = text;
+      finalTextEl.textContent = "עדיין אין תשובה סופית.";
+      renderHistory();
+      renderStepsLog();
+    }
+
+    function stepFactory(def) {
+      return () => {
+        setNodeActive(def.node);
+        setToolActive(def.tool || null);
+        statusEl.textContent = def.status;
+        const stepNumber = stepLogs.length + 1;
+        let addedMessageIndex = null;
+        if (def.action) {
+          addedMessageIndex = def.action(stepNumber);
+        }
+        addStepLog({
+          title: def.logTitle,
+          shortDesc: def.logShort,
+          longDesc: def.logLong,
+          codeSnippet: def.codeSnippet,
+          rawModelResponse: def.rawModelResponse,
+          rawToolResponse: def.rawToolResponse,
+          beforeTextConversion: def.beforeTextConversion,
+          afterTextConversion: def.afterTextConversion,
+          addedMessageIndex: addedMessageIndex
+        });
+        renderHistory();
+      };
+    }
+
+    function loadScenarioOneTool() {
+      resetBase("תרחיש א נטען: הפעלת כלי אחד בלבד.");
+      steps = [
+        stepFactory({
+          node: "n1",
+          status: "נוצר messages ראשוני עם הודעת משתמש.",
+          logTitle: "יצירת הודעת משתמש",
+          logShort: "נפתח מערך messages ומתווסף אליו אובייקט role=user.",
+          logLong: "זהו שלב ההתחלה של כל Query. כאן נשמר הטקסט שהמשתמש כתב, כדי שהמודל יקבל הקשר.",
+          codeSnippet: `messages = [{"role":"user","content":query}]`,
+          action: stepNo => pushMessage(
+            { role: "user", content: "מה התחזית להיום בירושלים?" },
+            "הודעת המשתמש שהתחילה את התהליך.",
+            stepNo
+          )
+        }),
+        stepFactory({
+          node: "n2",
+          status: "נשלחת קריאה למודל עם tools + messages.",
+          logTitle: "קריאה ראשונה למודל",
+          logShort: "המודל מקבל את ההיסטוריה ואת רשימת הכלים.",
+          logLong: "ה-Host שולח את messages יחד עם תיאור הכלים. המודל מחליט אם לענות ישירות או לקרוא לכלי.",
+          codeSnippet: `response = await openai.chat.completions.create(
+  model=model,
+  messages=messages,
+  tools=available_tools,
+  tool_choice="auto"
+)`,
+          rawModelResponse: {
+            id: "chatcmpl_mock_1",
+            choices: [{
+              index: 0,
+              message: {
+                role: "assistant",
+                content: "",
+                tool_calls: [{
+                  id: "call_1",
+                  type: "function",
+                  function: {
+                    name: "weather_Israel__extract_weather_forecast_content_israel",
+                    arguments: "{}"
+                  }
+                }]
+              },
+              finish_reason: "tool_calls"
+            }]
+          }
+        }),
+        stepFactory({
+          node: "n3",
+          status: "המודל מחזיר tool_call (צריך כלי).",
+          logTitle: "זיהוי tool_calls",
+          logShort: "בוצעה בדיקה והתקבלו tool_calls.",
+          logLong: "נקודת ההכרעה: אם tool_calls ריק מחזירים תשובה סופית. כאן הוא לא ריק ולכן ממשיכים לכלי.",
+          codeSnippet: `tool_calls = assistant_message.tool_calls or []
+if not tool_calls:
+    return assistant_message.content or ""`
+        }),
+        stepFactory({
+          node: "n4",
+          status: "הודעת assistant עם tool_calls נשמרה בהיסטוריה.",
+          logTitle: "שמירת assistant עם tool_calls",
+          logShort: "נוסף אובייקט assistant שמכיל את בקשת הפעלת הכלי.",
+          logLong: "שומרים את הודעת המודל בדיוק כפי שחזרה, כולל מטא-דאטה של tool_calls, כדי לשמור רצף תקין.",
+          codeSnippet: `messages.append({
+  "role":"assistant",
+  "content": assistant_message.content or "",
+  "tool_calls": [...]
+})`,
+          action: stepNo => pushMessage(
+            {
+              role: "assistant",
+              content: "",
+              tool_calls: [{
+                id: "call_1",
+                function: {
+                  name: "weather_Israel__extract_weather_forecast_content_israel",
+                  arguments: "{}"
+                }
+              }]
+            },
+            "המודל ביקש להפעיל את כלי extract.",
+            stepNo
+          )
+        }),
+        stepFactory({
+          node: "n5",
+          tool: "extract",
+          status: "הפעלת כלי extract בשרת MCP.",
+          logTitle: "הפעלת כלי MCP",
+          logShort: "ה-Host שולח ל-MCP את שם הכלי והפרמטרים.",
+          logLong: "מתבצעת קריאה ל-call_tool על השרת המתאים לפי מיפוי שם הכלי.",
+          codeSnippet: `result = await client.session.call_tool(
+  original_tool_name,
+  tool_args
+)`
+        }),
+        stepFactory({
+          node: "n6",
+          tool: "extract",
+          status: "תוצאת הכלי נשמרה כהודעת role=tool.",
+          logTitle: "שמירת tool result",
+          logShort: "נוסף פריט role=tool עם פלט הכלי.",
+          logLong: "את פלט הכלי מחזירים למודל בהודעת role=tool. כך המודל יכול להמשיך ולנסח תשובה.",
+          codeSnippet: `messages.append({
+  "role":"tool",
+  "tool_call_id": tool_call.id,
+  "name": tool_name,
+  "content": tool_output
+})`,
+          rawToolResponse: {
+            content: [
+              {
+                type: "text",
+                text: "ירושלים: היום חם, מקסימום 31°, בלילה 22°."
+              }
+            ]
+          },
+          beforeTextConversion: {
+            content: [
+              {
+                type: "text",
+                text: "ירושלים: היום חם, מקסימום 31°, בלילה 22°."
+              }
+            ]
+          },
+          afterTextConversion: "ירושלים: היום חם, מקסימום 31°, בלילה 22°.",
+          action: stepNo => pushMessage(
+            {
+              role: "tool",
+              name: "weather_Israel__extract_weather_forecast_content_israel",
+              tool_call_id: "call_1",
+              content: "ירושלים: היום חם, מקסימום 31°, בלילה 22°."
+            },
+            "פלט טקסטואלי שחוזר מהכלי extract.",
+            stepNo
+          )
+        }),
+        stepFactory({
+          node: "n7",
+          status: "חזרה ללולאה ושליחה נוספת למודל.",
+          logTitle: "לולאה לסבב נוסף",
+          logShort: "שולחים שוב למודל עם messages מעודכן.",
+          logLong: "הלולאה חוזרת לתחילת הסבב והמודל מקבל כעת גם את תוצאת הכלי.",
+          codeSnippet: `while True:
+    response = await openai.chat.completions.create(...)
+    ...`
+        }),
+        stepFactory({
+          node: "n2",
+          status: "קריאה שנייה למודל עם ההיסטוריה החדשה.",
+          logTitle: "קריאה שנייה למודל",
+          logShort: "המודל מקבל context עשיר יותר.",
+          logLong: "בסבב זה יש למודל גם את פלט הכלי, ולכן הוא יכול לענות ישירות.",
+          codeSnippet: `response = await openai.chat.completions.create(
+  messages=messages, tools=available_tools
+)`,
+          rawModelResponse: {
+            id: "chatcmpl_mock_2",
+            choices: [{
+              index: 0,
+              message: {
+                role: "assistant",
+                content: "בירושלים צפוי היום חם יחסית, סביב 31° ביום ו-22° בלילה."
+              },
+              finish_reason: "stop"
+            }]
+          }
+        }),
+        stepFactory({
+          node: "n3",
+          status: "אין יותר tool_calls. אפשר לסיים.",
+          logTitle: "תנאי עצירה",
+          logShort: "הבדיקה מחזירה שאין tool_calls.",
+          logLong: "כאן מתבצע return עם תוכן תשובת המודל.",
+          codeSnippet: `if not tool_calls:
+    return assistant_message.content or ""`
+        }),
+        stepFactory({
+          node: "n8",
+          status: "תשובה סופית נשלחת למשתמש.",
+          logTitle: "שמירת תשובת assistant סופית",
+          logShort: "נוסף פריט assistant סופי והתהליך מסתיים.",
+          logLong: "זה הפלט שהמשתמש רואה בצ'אט. אין עוד כלי להפעלה.",
+          codeSnippet: `final = assistant_message.content
+return final`,
+          action: stepNo => {
+            const final = "בירושלים צפוי היום חם יחסית, סביב 31° ביום ו-22° בלילה.";
+            const idxAdded = pushMessage(
+              { role: "assistant", content: final },
+              "תשובה סופית למשתמש לאחר שימוש בכלי.",
+              stepNo
+            );
+            finalTextEl.textContent = final;
+            return idxAdded;
+          }
+        })
+      ];
+    }
+
+    function loadScenarioThreeTools() {
+      resetBase("תרחיש ב נטען: רצף כלים מלא (3+1).");
+      steps = [];
+
+      steps.push(stepFactory({
+        node: "n1",
+        status: "התחלה: הודעת משתמש חדשה.",
+        logTitle: "יצירת הודעת user",
+        logShort: "נוסף messages[0] עם השאלה על חיפה.",
+        logLong: "השלב הראשון בכל ריצה. מאתחל את ההיסטוריה עבור Query נוכחי.",
+        codeSnippet: `messages = [{"role":"user","content":"מה התחזית בחיפה?"}]`,
+        action: stepNo => pushMessage(
+          { role: "user", content: "מה התחזית בחיפה?" },
+          "שאילתת המשתמש לתחזית בעיר.",
+          stepNo
+        )
+      }));
+
+      function addToolCycle(toolKey, toolName, toolArgs, toolResult, cycleNo) {
+        steps.push(stepFactory({
+          node: "n2",
+          status: `סבב ${cycleNo}: שליחה למודל.`,
+          logTitle: `סבב ${cycleNo} - קריאה למודל`,
+          logShort: "המודל מקבל היסטוריה וכלים.",
+          logLong: "בכל סבב המודל מחליט על הצעד הבא לפי ההקשר שנצבר.",
+          codeSnippet: `response = await openai.chat.completions.create(...)`,
+          rawModelResponse: {
+            id: `chatcmpl_cycle_${cycleNo}`,
+            choices: [{
+              index: 0,
+              message: {
+                role: "assistant",
+                content: "",
+                tool_calls: [{
+                  id: `call_${toolKey}_${cycleNo}`,
+                  type: "function",
+                  function: {
+                    name: toolName,
+                    arguments: JSON.stringify(toolArgs)
+                  }
+                }]
+              },
+              finish_reason: "tool_calls"
+            }]
+          }
+        }));
+        steps.push(stepFactory({
+          node: "n3",
+          status: `המודל מבקש ${toolName}.`,
+          logTitle: `סבב ${cycleNo} - זיהוי tool_call`,
+          logShort: `tool_calls מכיל את ${toolName}.`,
+          logLong: "זה שלב קבלת החלטת המודל על הכלי הבא בתהליך.",
+          codeSnippet: `tool_name = tool_call.function.name`
+        }));
+        steps.push(stepFactory({
+          node: "n4",
+          status: "שמירת assistant עם tool_call בהיסטוריה.",
+          logTitle: `סבב ${cycleNo} - שמירת assistant`,
+          logShort: "נוסף פריט assistant עם metadata של tool_calls.",
+          logLong: "חשוב לשמור את הודעת assistant כדי שהסבב הבא יישאר עקבי.",
+          codeSnippet: `messages.append({
+  role: "assistant",
+  content: "",
+  tool_calls: [{ function: { name: tool_name, arguments: ... } }]
+})`,
+          action: stepNo => pushMessage(
+            {
+              role: "assistant",
+              content: "",
+              tool_calls: [{
+                id: `call_${toolKey}_${cycleNo}`,
+                function: { name: toolName, arguments: JSON.stringify(toolArgs) }
+              }]
+            },
+            `המודל ביקש את הכלי ${toolName}.`,
+            stepNo
+          )
+        }));
+        steps.push(stepFactory({
+          node: "n5",
+          tool: toolKey,
+          status: `הפעלת ${toolName} בשרת MCP.`,
+          logTitle: `סבב ${cycleNo} - קריאת כלי`,
+          logShort: "ה-Host שולח את הבקשה ל-MCP.",
+          logLong: "הפעלה בפועל דרך call_tool עם השם המקורי והפרמטרים.",
+          codeSnippet: `result = await client.session.call_tool(original_tool_name, tool_args)`
+        }));
+        steps.push(stepFactory({
+          node: "n6",
+          tool: toolKey,
+          status: "תוצאת הכלי נשמרת כ-role=tool.",
+          logTitle: `סבב ${cycleNo} - שמירת tool result`,
+          logShort: "נוסף אובייקט tool ל-messages.",
+          logLong: "זה הקלט שהמודל יקרא בסבב הבא כדי להתקדם.",
+          codeSnippet: `messages.append({
+  role: "tool",
+  tool_call_id: tool_call.id,
+  name: tool_name,
+  content: tool_output
+})`,
+          rawToolResponse: {
+            content: [
+              {
+                type: "text",
+                text: toolResult
+              }
+            ]
+          },
+          beforeTextConversion: {
+            content: [
+              {
+                type: "text",
+                text: toolResult
+              }
+            ]
+          },
+          afterTextConversion: toolResult,
+          action: stepNo => pushMessage(
+            {
+              role: "tool",
+              name: toolName,
+              tool_call_id: `call_${toolKey}_${cycleNo}`,
+              content: toolResult
+            },
+            `תוצאת הפעלת ${toolName}.`,
+            stepNo
+          )
+        }));
+        steps.push(stepFactory({
+          node: "n7",
+          status: "חזרה ללולאה לסבב הבא.",
+          logTitle: `סבב ${cycleNo} - חזרה ללולאה`,
+          logShort: "המערך messages עודכן ומוכן לסבב נוסף.",
+          logLong: "כאן הלולאה מתחילה מחדש והמודל יבחר את הפעולה הבאה.",
+          codeSnippet: `continue  # while True`
+        }));
+      }
+
+      addToolCycle(
+        "open",
+        "weather_Israel__open_weather_forecast_israel",
+        {},
+        "הדפדפן נפתח ועבר ל-weather2day/forecast.",
+        1
+      );
+      addToolCycle(
+        "enter",
+        "weather_Israel__enter_weather_forecast_city_israel",
+        { city: "חיפה" },
+        "העיר 'חיפה' הוזנה בשדה החיפוש.",
+        2
+      );
+      addToolCycle(
+        "select",
+        "weather_Israel__select_weather_forecast_city_israel",
+        {},
+        "נבחרה העיר הראשונה מתוך הרשימה.",
+        3
+      );
+      addToolCycle(
+        "extract",
+        "weather_Israel__extract_weather_forecast_content_israel",
+        {},
+        "חיפה: היום 29°, בלילה 24°, רוחות מערביות קלות.",
+        4
+      );
+
+      steps.push(stepFactory({
+        node: "n2",
+        status: "סבב אחרון: שליחה למודל עם כל ההקשר.",
+        logTitle: "קריאה מסכמת למודל",
+        logShort: "אחרי כל הכלים, המודל מקבל הקשר מלא.",
+        logLong: "עכשיו המודל יכול לנסח תשובה סופית למשתמש על בסיס פלט הכלים.",
+        codeSnippet: `response = await openai.chat.completions.create(messages=messages, tools=available_tools)`,
+        rawModelResponse: {
+          id: "chatcmpl_final",
+          choices: [{
+            index: 0,
+            message: {
+              role: "assistant",
+              content: "בחיפה צפוי היום מזג אוויר חם ונעים: סביב 29° ביום ו-24° בלילה, עם רוחות מערביות קלות."
+            },
+            finish_reason: "stop"
+          }]
+        }
+      }));
+      steps.push(stepFactory({
+        node: "n3",
+        status: "אין tool_calls נוספים.",
+        logTitle: "בדיקת סיום",
+        logShort: "התנאי not tool_calls התקיים.",
+        logLong: "זה סימן שהתהליך הסתיים וניתן להחזיר תשובה למשתמש.",
+        codeSnippet: `if not tool_calls:
+    return assistant_message.content`
+      }));
+      steps.push(stepFactory({
+        node: "n8",
+        status: "תשובה סופית הוחזרה למשתמש.",
+        logTitle: "תשובה סופית",
+        logShort: "נוסף אובייקט assistant סופי ל-history.",
+        logLong: "זה הפלט הסופי של הצ'אט לאחר כל רצף הכלים.",
+        codeSnippet: `final = "בחיפה צפוי היום 29° ..."
+return final`,
+        action: stepNo => {
+          const final = "בחיפה צפוי היום מזג אוויר חם ונעים: סביב 29° ביום ו-24° בלילה, עם רוחות מערביות קלות.";
+          const i = pushMessage(
+            { role: "assistant", content: final },
+            "תשובה סופית לאחר רצף כלים מלא.",
+            stepNo
+          );
+          finalTextEl.textContent = final;
+          return i;
+        }
+      }));
+    }
+
+    function doStep() {
+      if (idx >= steps.length) {
+        statusEl.textContent = "הסימולציה הסתיימה.";
+        running = false;
+        return;
+      }
+      steps[idx]();
+      idx += 1;
+    }
+
+    async function runAuto() {
+      if (running) return;
+      running = true;
+      while (running && idx < steps.length) {
+        doStep();
+        await new Promise(resolve => setTimeout(resolve, 900));
+      }
+      running = false;
+    }
+
+    scenario1Btn.addEventListener("click", loadScenarioOneTool);
+    scenario3Btn.addEventListener("click", loadScenarioThreeTools);
+    stepBtn.addEventListener("click", () => { if (!running) doStep(); });
+    autoBtn.addEventListener("click", runAuto);
+    resetBtn.addEventListener("click", () => resetBase("בוצע איפוס. בחרי שוב תרחיש."));
+
+    resetBase();
+  </script>
+</body>
+</html>
