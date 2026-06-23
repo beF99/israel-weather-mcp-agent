@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>מפת זרימה: Host + Tool Calling</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --ink: #1e293b;
+      --muted: #5b6475;
+      --line: #d7e0ee;
+      --accent: #0f766e;
+      --accent-2: #0ea5e9;
+      --warn: #b45309;
+      --ok: #15803d;
+      --active: #dcfce7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background: linear-gradient(160deg, #f8fbff 0%, #eef6f3 100%);
+      color: var(--ink);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px 24px;
+    }
+    .hero {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px 18px;
+      box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+    }
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+    }
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+    .flow {
+      display: grid;
+      gap: 10px;
+    }
+    .node {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fcfeff;
+      position: relative;
+      transition: all .2s ease;
+    }
+    .node.active {
+      background: var(--active);
+      border-color: #86efac;
+      transform: translateX(-3px);
+    }
+    .node .title {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .node .desc {
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .arrow {
+      text-align: center;
+      color: #64748b;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    button {
+      border: 1px solid #0ea5e9;
+      background: #e0f2fe;
+      color: #0c4a6e;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary {
+      border-color: #94a3b8;
+      background: #f8fafc;
+      color: #334155;
+    }
+    .status {
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      background: #f9fcff;
+      color: #334155;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .code {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 10px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+      overflow: auto;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .history-box {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fbfdff;
+      max-height: 420px;
+      overflow: auto;
+    }
+    .history-item {
+      border-bottom: 1px solid #e9eef7;
+      padding: 8px 0;
+      font-size: 13px;
+    }
+    .history-item:last-child { border-bottom: 0; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin-left: 6px;
+      color: white;
+      vertical-align: middle;
+    }
+    .role-user { background: #0369a1; }
+    .role-assistant { background: #6d28d9; }
+    .role-tool { background: #15803d; }
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>מפת זרימה מפורטת: איך Host מחליט אם להפעיל כלי או להחזיר תשובה</h1>
+      <p>
+        התרשים מדגים את `process_query` מתוך `host.py`: ניהול היסטוריית `messages`, זיהוי `tool_calls`, הפעלת MCP Tool,
+        החזרת `role=tool`, ולולאה חוזרת עד תשובה סופית.
+      </p>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>תרשים זרימה</h2>
+        <div class="flow" id="flow">
+          <div class="node" id="n1">
+            <div class="title">1) התחלה: יצירת היסטוריה ראשונית</div>
+            <div class="desc">`messages = [{"role":"user","content":query}]`</div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n2">
+            <div class="title">2) קריאה למודל עם כלים</div>
+            <div class="desc">`chat.completions.create(model, messages, tools, tool_choice="auto")`</div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n3">
+            <div class="title">3) זיהוי האם יש tool_calls</div>
+            <div class="desc">`tool_calls = assistant_message.tool_calls or []`</div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n4">
+            <div class="title">4) שמירת הודעת assistant בהיסטוריה</div>
+            <div class="desc">תמיד מוסיפים `assistant` ל-`messages`, גם אם אין כלי</div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n5">
+            <div class="title">5) תנאי עצירה</div>
+            <div class="desc">אם `not tool_calls` => תשובה סופית למשתמש (`return`)</div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n6">
+            <div class="title">6) הפעלת כלי ב-MCP</div>
+            <div class="desc">`call_tool(original_tool_name, tool_args)`</div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n7">
+            <div class="title">7) שמירת תוצאת כלי כהודעת role=tool</div>
+            <div class="desc">`messages.append({"role":"tool", ... , "content": tool_output})`</div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node" id="n8">
+            <div class="title">8) חזרה לשלב 2 (לולאה)</div>
+            <div class="desc">המודל מקבל הקשר מלא מעודכן וממשיך עד תשובה מוגמרת</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>סימולציה אינטראקטיבית</h2>
+        <div class="controls">
+          <button id="startBtn">הפעל סימולציה מלאה</button>
+          <button class="secondary" id="stepBtn">צעד הבא</button>
+          <button class="secondary" id="resetBtn">איפוס</button>
+        </div>
+        <div class="status" id="status">מוכן להרצה</div>
+        <div class="small">מצב מערך ההיסטוריה (`messages`) בזמן אמת:</div>
+        <div class="history-box" id="history"></div>
+        <div class="small" style="margin-top:10px;">קטע הקוד הקריטי לזיהוי "תשובה סופית או הפעלת כלי":</div>
+        <div class="code">tool_calls = assistant_message.tool_calls or []
+messages.append(assistant_payload)
+
+if not tool_calls:
+    return assistant_message.content or ""</div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const nodes = ["n1","n2","n3","n4","n5","n6","n7","n8"];
+    const statusEl = document.getElementById("status");
+    const historyEl = document.getElementById("history");
+    const startBtn = document.getElementById("startBtn");
+    const stepBtn = document.getElementById("stepBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let stepIndex = 0;
+    let running = false;
+
+    // סימולציה עם שני סבבים:
+    // סבב 1: המודל מבקש כלי
+    // סבב 2: המודל מחזיר תשובה סופית
+    let messages = [];
+
+    function clearActive() {
+      nodes.forEach(id => document.getElementById(id).classList.remove("active"));
+    }
+
+    function setActive(id) {
+      clearActive();
+      document.getElementById(id).classList.add("active");
+    }
+
+    function roleBadge(role) {
+      if (role === "user") return `<span class="badge role-user">user</span>`;
+      if (role === "assistant") return `<span class="badge role-assistant">assistant</span>`;
+      return `<span class="badge role-tool">tool</span>`;
+    }
+
+    function renderHistory() {
+      if (!messages.length) {
+        historyEl.innerHTML = '<div class="small">המערך ריק כרגע</div>';
+        return;
+      }
+      historyEl.innerHTML = messages.map((m, i) => {
+        const toolMeta = m.tool_calls ? `<div class="small">tool_calls: ${JSON.stringify(m.tool_calls)}</div>` : "";
+        const toolId = m.tool_call_id ? `<div class="small">tool_call_id: ${m.tool_call_id}</div>` : "";
+        const name = m.name ? `<div class="small">tool name: ${m.name}</div>` : "";
+        return `
+          <div class="history-item">
+            <div><strong>#${i}</strong> ${roleBadge(m.role)}</div>
+            <div>${escapeHtml(String(m.content ?? ""))}</div>
+            ${toolMeta}
+            ${toolId}
+            ${name}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function escapeHtml(s) {
+      return s
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function reset() {
+      stepIndex = 0;
+      running = false;
+      messages = [];
+      clearActive();
+      statusEl.textContent = "בוצע איפוס. לחץ 'הפעל סימולציה מלאה' או 'צעד הבא'.";
+      renderHistory();
+    }
+
+    function runStep() {
+      switch (stepIndex) {
+        case 0:
+          setActive("n1");
+          messages.push({ role: "user", content: "What is the forecast for New York City?" });
+          statusEl.textContent = "נוצר messages עם הודעת משתמש ראשונה.";
+          break;
+
+        case 1:
+          setActive("n2");
+          statusEl.textContent = "נשלחה בקשה למודל עם tools + messages.";
+          break;
+
+        case 2:
+          setActive("n3");
+          statusEl.textContent = "המודל החזיר tool_calls (כלומר צריך להפעיל כלי).";
+          break;
+
+        case 3:
+          setActive("n4");
+          messages.push({
+            role: "assistant",
+            content: "",
+            tool_calls: [{
+              id: "call_1",
+              type: "function",
+              function: { name: "weather__get_forecast", arguments: "{\"latitude\":40.7128,\"longitude\":-74.0060}" }
+            }]
+          });
+          statusEl.textContent = "הודעת assistant עם tool_calls נוספה להיסטוריה.";
+          break;
+
+        case 4:
+          setActive("n5");
+          statusEl.textContent = "בדיקה: יש tool_calls, לכן לא חוזרים למשתמש עדיין.";
+          break;
+
+        case 5:
+          setActive("n6");
+          statusEl.textContent = "מתבצעת קריאת MCP tool: get_forecast(latitude, longitude).";
+          break;
+
+        case 6:
+          setActive("n7");
+          messages.push({
+            role: "tool",
+            tool_call_id: "call_1",
+            name: "weather__get_forecast",
+            content: "Tonight: Showers... Tuesday: High near 74F..."
+          });
+          statusEl.textContent = "תוצאת הכלי נוספה להיסטוריה כהודעת role=tool.";
+          break;
+
+        case 7:
+          setActive("n8");
+          statusEl.textContent = "חזרה ללולאה: שולחים שוב למודל את messages המעודכן.";
+          break;
+
+        case 8:
+          setActive("n2");
+          statusEl.textContent = "קריאה שנייה למודל עם כל ההיסטוריה (user + assistant/tool_calls + tool result).";
+          break;
+
+        case 9:
+          setActive("n3");
+          statusEl.textContent = "הפעם אין tool_calls. המודל מחזיר תשובה סופית.";
+          break;
+
+        case 10:
+          setActive("n4");
+          messages.push({
+            role: "assistant",
+            content: "The forecast for New York City is: Tonight showers and thunderstorms..."
+          });
+          statusEl.textContent = "נוספה תשובת assistant הסופית להיסטוריה.";
+          break;
+
+        case 11:
+          setActive("n5");
+          statusEl.textContent = "not tool_calls == true => return תשובה למשתמש וסיום.";
+          running = false;
+          break;
+
+        default:
+          running = false;
+          statusEl.textContent = "הסימולציה הסתיימה.";
+      }
+      renderHistory();
+      stepIndex += 1;
+    }
+
+    async function runAll() {
+      if (running) return;
+      running = true;
+      while (running && stepIndex <= 11) {
+        runStep();
+        await new Promise(r => setTimeout(r, 900));
+      }
+      running = false;
+    }
+
+    startBtn.addEventListener("click", runAll);
+    stepBtn.addEventListener("click", () => { if (!running) runStep(); });
+    resetBtn.addEventListener("click", reset);
+
+    reset();
+  </script>
+</body>
+</html>
