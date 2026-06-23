@@ -36,7 +36,6 @@ OPENAI_MODEL=gpt-4.1-mini
 ניתן לפתוח את תרשים הזרימה של המשימה באופן ויזואלי דרך קובץ ה-HTML הבא:
 
 [PROJECT_SPEC_FLOW_SIMULATOR.html בתצוגה ויזואלית](https://htmlpreview.github.io/?https://raw.githubusercontent.com/beF99/israel-weather-mcp-agent/main/PROJECT_SPEC_FLOW_SIMULATOR.html)
-
 ## דוגמאות שאלות שה-Agent יודע לענות
 1. `מה התחזית בחיפה להיום?`
 2. `מה מזג האוויר בבית שמש היום?`
